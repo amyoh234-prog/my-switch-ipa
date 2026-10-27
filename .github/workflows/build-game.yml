@@ -23,7 +23,7 @@ jobs:
           GDRIVE_URL: ${{ secrets.GDRIVE_URL }}
         run: |
           mkdir -p ~/raw_input ~/Games/MyGame ~/keys ~/output
-          gdown --fuzzy "$GDRIVE_URL" -O ~/game_pack.zip
+          gdown "$GDRIVE_URL" -O ~/game_pack.zip
           7z x ~/game_pack.zip -o$HOME/raw_input
           
           # prod.keys 파일 자동 찾기
