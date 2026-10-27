@@ -40,7 +40,7 @@ jobs:
       - name: 4. IPA 파일로 변환하기 (약 30~50분 소요)
         run: |
           cd ~/nxnative
-          python3 scripts/build_ipa_from_nsp.py ~/Games/MyGame -k ~/keys/prod.keys
+          ALLOW_OTHER_METAL=True python3 scripts/build_ipa_from_nsp.py ~/Games/MyGame -k ~/keys/prod.keys
 
       - name: 5. 완성된 IPA에 비밀번호 걸어 포장하기
         env:
