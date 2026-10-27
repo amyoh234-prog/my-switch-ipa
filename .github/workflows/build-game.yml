@@ -1,0 +1,56 @@
+name: Build Switch IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: 1. 기본 도구 및 패키지 설치
+        run: |
+          xcodebuild -downloadComponent MetalToolchain
+          brew install xcodegen zstd glslang p7zip
+          brew install --cask dotnet-sdk
+          python3 -m pip install lz4 capstone fonttools gdown nsz "backports.zstd; python_version < '3.14'"
+
+      - name: 2. nxnative 다운로드
+        run: |
+          git clone https://github.com/seedds/nxnative.git ~/nxnative
+
+      - name: 3. 구글 드라이브에서 내 게임 가져오기
+        env:
+          GDRIVE_URL: ${{ secrets.GDRIVE_URL }}
+        run: |
+          mkdir -p ~/raw_input ~/Games/MyGame ~/keys ~/output
+          gdown --fuzzy "$GDRIVE_URL" -O ~/game_pack.zip
+          7z x ~/game_pack.zip -o$HOME/raw_input
+          
+          # prod.keys 파일 자동 찾기
+          KEY_PATH=$(find ~/raw_input -name "prod.keys" | head -n 1)
+          if [ -z "$KEY_PATH" ]; then
+            echo "오류: 압축 파일 안에서 prod.keys를 찾을 수 없습니다!"
+            exit 1
+          fi
+          cp "$KEY_PATH" ~/keys/prod.keys
+          
+          # 게임 파일(.nsp, .xci 등) 자동 찾기
+          find ~/raw_input -type f \( -iname "*.nsp" -o -iname "*.xci" -o -iname "*.nsz" -o -iname "*.xcz" \) -exec mv {} ~/Games/MyGame/ \;
+
+      - name: 4. IPA 파일로 변환하기 (약 30~50분 소요)
+        run: |
+          cd ~/nxnative
+          python3 scripts/build_ipa_from_nsp.py ~/Games/MyGame -k ~/keys/prod.keys
+
+      - name: 5. 완성된 IPA에 비밀번호 걸어 포장하기
+        env:
+          ZIP_PASS: ${{ secrets.ZIP_PASS }}
+        run: |
+          7z a -t7z -m0=copy -p"$ZIP_PASS" -mhe=on ~/output/Result_IPA.7z ~/Games/MyGame/*.ipa
+
+      - name: 6. 다운로드할 수 있게 결과물 올리기
+        uses: actions/upload-artifact@v4
+        with:
+          name: Finished-Game-IPA
+          path: ~/output/Result_IPA.7z
+          compression-level: 0
